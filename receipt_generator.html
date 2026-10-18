@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Receipt Generator</title>
+<style>
+  :root {
+    --paper: #fdfdfb;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --panel: #f2f0ea;
+    --panel-border: #d8d4c8;
+    --accent: #b5401f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #e9e6dd;
+    color: var(--ink);
+    display: flex;
+    min-height: 100vh;
+  }
+  .panel {
+    width: 380px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--panel-border);
+    padding: 24px 20px 60px;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+  .panel h1 {
+    font-size: 18px;
+    letter-spacing: 0.02em;
+    margin: 0 0 4px;
+  }
+  .panel .sub {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 0 0 20px;
+  }
+  fieldset {
+    border: none;
+    border-top: 1px solid var(--panel-border);
+    padding: 14px 0;
+    margin: 0;
+  }
+  legend {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    font-weight: 600;
+    padding: 0;
+    margin-bottom: 8px;
+  }
+  label {
+    display: block;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin: 8px 0 3px;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 13px;
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    background: #fff;
+    font-family: inherit;
+  }
+  .row2 { display: flex; gap: 8px; }
+  .row2 > div { flex: 1; }
+  .item-row {
+    display: grid;
+    grid-template-columns: 55px 1fr 50px 70px 22px;
+    gap: 6px;
+    margin-bottom: 6px;
+    align-items: center;
+  }
+  .item-row input { font-size: 12px; padding: 5px 6px; }
+  .remove-btn {
+    background: none;
+    border: none;
+    color: #a33;
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+  }
+  .add-item {
+    margin-top: 4px;
+    background: none;
+    border: 1px dashed var(--panel-border);
+    color: var(--ink-soft);
+    padding: 6px;
+    width: 100%;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .add-item:hover { border-color: var(--accent); color: var(--accent); }
+  .print-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  .print-btn:hover { background: #9a3419; }
+
+  .stage {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+    overflow-x: auto;
+  }
+  .receipt {
+    width: 300px;
+    background: var(--paper);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    padding: 120px 100px 150px 6px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12.3px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #000;
+    height: fit-content;
+    white-space: nowrap;
+    overflow-x: visible;
+  }
+  .receipt .center { text-align: center; }
+  .receipt .biz-name { font-size: 14px; }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  .receipt .dash {
+    border: none;
+    border-top: 3px dashed #000;
+    margin: 8px 0;
+  }
+  .receipt .kv { display: flex; justify-content: space-between; }
+  .receipt table { width: 100%; border-collapse: collapse; }
+  .receipt th {
+    text-align: left;
+    font-size: 11.5px;
+    padding-bottom: 3px;
+    border-bottom: 1px dashed #000;
+  }
+  .receipt th:last-child, .receipt td:last-child { text-align: right; }
+  .receipt th:nth-child(2), .receipt td:nth-child(2) { text-align: right; }
+  .receipt td { padding: 5px 0; vertical-align: top; }
+  .receipt .item-name { padding-top: 10px; }
+  .receipt .item-sub { color: #000; font-size: 11.5px; padding-top: 8px; }
+  .receipt .totals .kv { padding: 2px 0; }
+  .receipt .served { margin-top: 10px; }
+  .receipt .footer-note { margin-top: 10px; font-size: 11px; color: #000; white-space: nowrap; }
+
+  @media print {
+    @page { size: 58mm auto; margin: 0; }
+    body { background: #fff; }
+    .panel { display: none; }
+    .stage { padding: 0; justify-content: flex-start; }
+    .receipt {
+      box-shadow: none;
+      width: 58mm;
+      padding: 15mm 2mm 20mm 1mm;
+      font-size: 10.5px;
+      font-weight: 700;
+      margin: 0;
+      color: #000;
+    }
+  }
+  @media (max-width: 760px) {
+    body { flex-direction: column; }
+    .panel { width: 100%; max-height: none; border-right: none; border-bottom: 1px solid var(--panel-border); }
+    .stage { padding: 24px 12px; }
+  }
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#b5401f">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<div class="panel">
+  <h1>Receipt Generator</h1>
+  <p class="sub">Fill in the details — the receipt updates live on the right. Use Print to save as PDF.</p>
+
+  <fieldset>
+    <legend>Station Template</legend>
+    <label>Choose a style</label>
+    <select id="template" onchange="applyTemplate(this.value)">
+      <optgroup label="Shell Stations">
+        <option value="shell_kira">Shell Kira Mulawa</option>
+        <option value="shell_kitetika">Shell Kitetika</option>
+        <option value="shell_iganga">Shell Iganga</option>
+        <option value="shell_test">Shell Test Station (fictional)</option>
+      </optgroup>
+      <optgroup label="Other Brands">
+        <option value="total">TotalEnergies</option>
+        <option value="rubis">Rubis</option>
+        <option value="kobil">Kobil</option>
+        <option value="generic">Generic / Independent</option>
+      </optgroup>
+      <option value="custom">Custom (no preset)</option>
+    </select>
+  </fieldset>
+
+  <fieldset>
+    <legend>Business</legend>
+    <label>Business name</label>
+    <input id="bizName" value="Shell Kira Mulawa">
+    <label>Address / location (use | for a second line)</label>
+    <input id="bizAddr" value="Kampala">
+    <label>Location (optional, only printed if filled)</label>
+    <input id="bizLocation" value="">
+    <div class="row2">
+      <div>
+        <label>PIN</label>
+        <input id="pin" value="1008025415">
+      </div>
+      <div>
+        <label>TIN No.</label>
+        <input id="tin" value="">
+      </div>
+    </div>
+    <div class="row2">
+      <div>
+        <label>VAT Reg</label>
+        <input id="vatReg" value="1008025412">
+      </div>
+      <div>
+        <label>Till No.</label>
+        <input id="tillNo" value="">
+      </div>
+    </div>
+    <label>Tel No.</label>
+    <input id="tel" value="">
+  </fieldset>
+
+  <fieldset>
+    <legend>Transaction</legend>
+    <div class="row2">
+      <div>
+        <label>Pump / Till No.</label>
+        <input id="pumpNo" value="01">
+      </div>
+      <div>
+        <label>Sale No.</label>
+        <input id="saleNo" value="00073">
+      </div>
+    </div>
+    <div class="row2">
+      <div>
+        <label>Date</label>
+        <input id="date" type="date" value="2026-04-18">
+      </div>
+      <div>
+        <label>Time</label>
+        <input id="time" type="time" step="1" value="10:12:48">
+      </div>
+    </div>
+    <label>Payment method</label>
+    <select id="payMethod">
+      <option>Momo Pay</option>
+      <option>Cash</option>
+      <option>Visa/Mastercard</option>
+      <option>Bank Transfer</option>
+    </select>
+  </fieldset>
+
+  <fieldset>
+    <legend>Items</legend>
+    <div id="itemsList"></div>
+    <button class="add-item" onclick="addItem()">+ Add item</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>VAT</legend>
+    <div class="row2">
+      <div>
+        <label>VAT rate label</label>
+        <input id="vatLabel" value="A7">
+      </div>
+      <div>
+        <label>VAT rate %</label>
+        <input id="vatRate" type="number" value="0" step="0.01">
+      </div>
+    </div>
+    <label><input type="checkbox" id="vatInclusive" checked style="width:auto;display:inline-block;vertical-align:middle;margin-right:6px;">Prices inclusive of VAT where applicable</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Staff & footer</legend>
+    <label>Served by</label>
+    <input id="servedBy" value="Emily Kyakuhaire">
+    <label>Thank-you message</label>
+    <input id="thanksMsg" value="Thank you for shopping with us!">
+    <label>Bottom notes (optional, printed after the closing line)</label>
+    <textarea id="footerNote" rows="4" placeholder="Any extra text for the bottom of the receipt"></textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>Extra dotted lines</legend>
+    <label>Extra line 1</label>
+    <select id="extraDash1">
+      <option value="none">None</option>
+      <option value="top">At the very top</option>
+      <option value="address">After the address</option>
+      <option value="datetime">After date and time</option>
+      <option value="items">After the items</option>
+      <option value="total">After the total</option>
+      <option value="vat">After the VAT section</option>
+      <option value="thanks">After the thank-you message</option>
+      <option value="bottom">At the very bottom</option>
+    </select>
+    <label>Extra line 2 (same spot as line 1 = double line)</label>
+    <select id="extraDash2">
+      <option value="none">None</option>
+      <option value="top">At the very top</option>
+      <option value="address">After the address</option>
+      <option value="datetime">After date and time</option>
+      <option value="items">After the items</option>
+      <option value="total">After the total</option>
+      <option value="vat">After the VAT section</option>
+      <option value="thanks">After the thank-you message</option>
+      <option value="bottom">At the very bottom</option>
+    </select>
+  </fieldset>
+
+  <label style="margin-top:16px">Printer width (for image printing)</label>
+  <select id="printerDots">
+    <option value="384">58 mm paper (384 dots)</option>
+    <option value="576">80 mm paper (576 dots)</option>
+  </select>
+  <label>Extra white space on the right (mm, image printing)</label>
+  <input id="rightPadMm" type="number" min="0" max="25" step="0.5" value="10">
+  <label>Text-style image: characters per line (fewer = wider letters)</label>
+  <input id="imgCols" type="number" min="18" max="32" value="25">
+  <label>Text-style image: letter height</label>
+  <select id="imgCharH">
+    <option value="24">Normal (24 dots)</option>
+    <option value="30">Tall (30 dots)</option>
+    <option value="36" selected>Taller (36 dots)</option>
+  </select>
+  <label>Letter thickness (image printing)</label>
+  <select id="imgWeight">
+    <option value="light">Light (thin)</option>
+    <option value="medium">Medium (bold)</option>
+    <option value="heavy" selected>Heavy (extra bold)</option>
+  </select>
+  <label>White space above the receipt (mm, image printing)</label>
+  <input id="padTopMm" type="number" min="0" max="60" step="1" value="25">
+  <label>White space below the receipt (mm, image printing)</label>
+  <input id="padBottomMm" type="number" min="0" max="80" step="1" value="40">
+  <button class="print-btn" style="margin-top:10px; background:#7a2f6b;" onclick="printImageViaRawBT()">Print exact preview via RawBT (image)</button>
+  <button class="print-btn" style="margin-top:8px; background:#5d3a7a;" onclick="downloadImageJob()">Download image print job (.bin)</button>
+  <button class="print-btn" style="margin-top:8px; background:#a14b1a;" onclick="printTextStyleImage()">Print image in ESC/POS text style (RawBT)</button>
+  <button class="print-btn" style="margin-top:8px; background:#7d3a14;" onclick="downloadTextStyleImage()">Download text-style image job (.bin)</button>
+  <button class="print-btn" style="margin-top:8px; background:#8a6d1f;" onclick="printAlignmentTest()">Print alignment test strip (RawBT)</button>
+  <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+  <button class="print-btn" style="margin-top:8px; background:#444;" onclick="downloadPdf()">Download as PDF</button>
+  <button class="print-btn" style="margin-top:8px; background:#6b6b52;" onclick="downloadText()">Download as Text (.txt)</button>
+  <button class="print-btn" style="margin-top:8px; background:#2f5d3a;" onclick="printViaRawBT()">Print via RawBT (ESC/POS)</button>
+  <button class="print-btn" style="margin-top:8px; background:#3b4a6b;" onclick="downloadEscPos()">Download ESC/POS file (.bin)</button>
+</div>
+
+<div class="stage">
+  <div class="receipt" id="receiptOutput"></div>
+</div>
+
+<script>
+let items = [
+  { code: "ULX", name: "Shell FuelSave Unleaded", qty: 18.18, price: 5390.00, ref: "15101506" }
+];
+
+const TEMPLATES = {
+  shell_kira: {
+    accent: '#e21818', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Pumps No.', saleLabel: 'CashSale',
+    showVatBreakdown: true, headerCase: 'title',
+    defaults: { bizName: 'Shell Kira Mulawa', bizAddr: 'Kampala', pin: '1008025415', tin: '', vatReg: '1008025412', tillNo: '', tel: '', pumpNo: '01', saleNo: '00073', vatLabel: 'A7', vatRate: 0 }
+  },
+  shell_kitetika: {
+    accent: '#e21818', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Pumps No.', saleLabel: 'CashSale',
+    showVatBreakdown: true, headerCase: 'title',
+    defaults: { bizName: 'Shell Kitetika', bizAddr: '', pin: '', tin: '1045B19394', vatReg: '', tillNo: '', tel: '', pumpNo: '06', saleNo: '2026-1171522', vatLabel: '0%', vatRate: 0 }
+  },
+  shell_iganga: {
+    accent: '#e21818', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Till No.', saleLabel: 'CashSale',
+    showVatBreakdown: true, headerCase: 'title',
+    defaults: { bizName: 'Shell Iganga', bizAddr: 'Main Street, Iganga', pin: '1000274860', tin: '', vatReg: '1000274860', tillNo: '', tel: '0753950648', pumpNo: '9', saleNo: '00114', vatLabel: 'A7', vatRate: 0 }
+  },
+  shell_test: {
+    accent: '#e21818', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Pumps No.', saleLabel: 'CashSale',
+    showVatBreakdown: true, headerCase: 'title',
+    defaults: { bizName: 'Shell Test Station', bizAddr: 'Sample Road|Testville', pin: '', tin: '1000000001', vatReg: '', tillNo: '', tel: '0700000000', pumpNo: '05', saleNo: '2026-0000001', vatLabel: 'A7', vatRate: 0,
+      footerNote: 'FISCALIZATION ERROR !!!\nGoods/Services Code:ULX\n--Goods/Services Name:Sh\nell FuelSave Unleaded-->\nInventory shortage! (ERR\n:1600)' }
+  },
+  total: {
+    accent: '#ffcc00', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Dispenser No.', saleLabel: 'Transaction No.',
+    showVatBreakdown: true, headerCase: 'upper',
+    defaults: { bizName: 'TotalEnergies Ntinda', bizAddr: 'Kampala', pin: '1004432211', tin: '', vatReg: '1004432211', tillNo: '', tel: '', pumpNo: '03', saleNo: 'TX-00456', vatLabel: 'B18', vatRate: 18 }
+  },
+  rubis: {
+    accent: '#00563f', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Pump', saleLabel: 'Receipt No.',
+    showVatBreakdown: true, headerCase: 'title',
+    defaults: { bizName: 'Rubis Bugolobi', bizAddr: 'Kampala', pin: '1007765432', tin: '', vatReg: '1007765432', tillNo: '', tel: '', pumpNo: '02', saleNo: 'RB-00981', vatLabel: 'VAT18', vatRate: 18 }
+  },
+  kobil: {
+    accent: '#004b93', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Nozzle No.', saleLabel: 'Ticket No.',
+    showVatBreakdown: false, headerCase: 'upper',
+    defaults: { bizName: 'Kobil Nakawa', bizAddr: 'Kampala', pin: '1002298871', tin: '', vatReg: '1002298871', tillNo: '', tel: '', pumpNo: '05', saleNo: '00312', vatLabel: 'VAT', vatRate: 18 }
+  },
+  generic: {
+    accent: '#555555', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Pump No.', saleLabel: 'Sale No.',
+    showVatBreakdown: false, headerCase: 'title',
+    defaults: { bizName: 'City Fuel Station', bizAddr: 'Kampala', pin: '', tin: '', vatReg: '', tillNo: '', tel: '', pumpNo: '01', saleNo: '0001', vatLabel: 'VAT', vatRate: 0 }
+  },
+  custom: {
+    accent: '#b5401f', font: "'Courier New', Courier, monospace",
+    pumpLabel: 'Pump No.', saleLabel: 'Sale No.',
+    showVatBreakdown: true, headerCase: 'title',
+    defaults: null
+  }
+};
+
+let currentTemplate = TEMPLATES.shell_kira;
+
+function applyTemplate(key) {
+  currentTemplate = TEMPLATES[key];
+  document.documentElement.style.setProperty('--accent', currentTemplate.accent);
+  document.getElementById('receiptOutput').style.fontFamily = currentTemplate.font;
+
+  if (currentTemplate.defaults) {
+    const d = currentTemplate.defaults;
+    document.getElementById('bizName').value = d.bizName;
+    document.getElementById('bizAddr').value = d.bizAddr;
+    document.getElementById('bizLocation').value = d.location || '';
+    document.getElementById('footerNote').value = d.footerNote || '';
+    document.getElementById('pin').value = d.pin;
+    document.getElementById('vatReg').value = d.vatReg;
+    document.getElementById('pumpNo').value = d.pumpNo;
+    document.getElementById('saleNo').value = d.saleNo;
+    document.getElementById('vatLabel').value = d.vatLabel;
+    document.getElementById('vatRate').value = d.vatRate;
+    document.getElementById('tin').value = d.tin || '';
+    document.getElementById('tillNo').value = d.tillNo || '';
+    document.getElementById('tel').value = d.tel || '';
+  }
+  render();
+}
+
+function addItem() {
+  items.push({ code: "ULX", name: "", qty: 1, price: 0, ref: "" });
+  renderItemInputs();
+  render();
+}
+
+function removeItem(i) {
+  items.splice(i, 1);
+  renderItemInputs();
+  render();
+}
+
+function renderItemInputs() {
+  const list = document.getElementById('itemsList');
+  list.innerHTML = '';
+  items.forEach((it, i) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input placeholder="Code" value="${escapeAttr(it.code || '')}" oninput="items[${i}].code=this.value; render()">
+      <input placeholder="Item name" value="${escapeAttr(it.name)}" oninput="items[${i}].name=this.value; render()">
+      <input placeholder="Qty" type="number" step="0.01" value="${it.qty}" oninput="items[${i}].qty=parseFloat(this.value)||0; render()">
+      <input placeholder="Price" type="number" step="0.01" value="${it.price}" oninput="items[${i}].price=parseFloat(this.value)||0; render()">
+      <button class="remove-btn" onclick="removeItem(${i})" title="Remove">×</button>
+    `;
+    list.appendChild(row);
+    const refRow = document.createElement('div');
+    refRow.style.marginBottom = '10px';
+    refRow.innerHTML = `<input placeholder="Reference code (optional, e.g. 15101506)" value="${escapeAttr(it.ref || '')}" oninput="items[${i}].ref=this.value; render()">`;
+    list.appendChild(refRow);
+  });
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/"/g, '&quot;');
+}
+
+function fmt(n) {
+  return n.toFixed(2);
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function render() {
+  const bizName = document.getElementById('bizName').value;
+  const bizAddr = document.getElementById('bizAddr').value;
+  const bizLocation = document.getElementById('bizLocation').value.trim();
+  const pin = document.getElementById('pin').value.trim();
+  const tin = document.getElementById('tin').value.trim();
+  const vatReg = document.getElementById('vatReg').value.trim();
+  const tillNo = document.getElementById('tillNo').value.trim();
+  const tel = document.getElementById('tel').value;
+  const pumpNo = document.getElementById('pumpNo').value;
+  const saleNo = document.getElementById('saleNo').value;
+  const date = formatDate(document.getElementById('date').value);
+  const time = document.getElementById('time').value;
+  const payMethod = document.getElementById('payMethod').value;
+  const vatLabel = document.getElementById('vatLabel').value;
+  const vatRate = parseFloat(document.getElementById('vatRate').value) || 0;
+  const vatInclusive = document.getElementById('vatInclusive').checked;
+  const servedBy = document.getElementById('servedBy').value;
+  const thanksMsg = document.getElementById('thanksMsg').value;
+  const footerNote = document.getElementById('footerNote').value.trim();
+
+  let total = 0;
+  const itemsHtml = items.map(it => {
+    const amount = it.qty * it.price;
+    total += amount;
+    return `
+      <tr><td>${escapeHtml(it.code || '')}</td><td></td><td>${escapeHtml(vatLabel)}</td></tr>
+      <tr><td colspan="3" class="item-name">${escapeHtml(it.name)}</td></tr>
+      <tr>
+        <td class="item-sub">${it.qty} x</td>
+        <td colspan="2" class="item-sub">${fmt(it.price)}</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td></td>
+        <td style="padding-top: 8px;">${fmt(amount)}</td>
+      </tr>
+      ${(it.ref || '').trim() ? `<tr><td colspan="3" style="padding-top: 10px; text-align: left;">${escapeHtml(it.ref.trim())}</td></tr>` : ''}
+    `;
+  }).join('');
+
+  const vatAmt = vatInclusive ? total - (total / (1 + vatRate / 100)) : total * (vatRate / 100);
+  const vatable = total - (vatInclusive ? vatAmt : 0);
+
+  const receipt = document.getElementById('receiptOutput');
+  receipt.innerHTML = `
+    ${xd('top')}
+    <div class="biz-name" style="margin-left: 15%;">${escapeHtml(bizName)}</div>
+    <div>${escapeHtml(bizName)}</div>
+    ${bizAddr.split('|').map(a => `<div>${escapeHtml(a.trim())}</div>`).join('')}
+    ${bizLocation ? `<div>${escapeHtml(bizLocation)}</div>` : ''}
+    ${xd('address')}
+    ${pin ? `<div>PIN : ${escapeHtml(pin)}</div>` : ''}
+    ${tin ? `<div>TIN No. : ${escapeHtml(tin)}</div>` : ''}
+    ${vatReg ? `<div>VAT Reg : ${escapeHtml(vatReg)}</div>` : ''}
+    <div>Tel No. : ${escapeHtml(tel)}</div>
+    ${tillNo ? `<div>Till No. : ${escapeHtml(tillNo)}</div>` : ''}
+    <div>${currentTemplate.pumpLabel} : ${escapeHtml(pumpNo)}</div>
+    <div>${currentTemplate.saleLabel} : ${escapeHtml(saleNo)}</div>
+    <div class="kv"><span>Date:</span><span>Time:</span></div>
+    <div class="kv"><span>${escapeHtml(date)}</span><span>${escapeHtml(time)}</span></div>
+    ${xd('datetime')}
+    <hr class="dash">
+    <table>
+      <thead><tr><th>ITEM/QTY</th><th>PRICE</th><th>AMOUNT</th></tr></thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+    <hr class="dash">
+    ${xd('items')}
+    <div class="totals">
+      <div class="kv"><span>TOTAL</span><span>${fmt(total)}</span></div>
+      <div class="kv"><span>${escapeHtml(payMethod)}</span><span>${fmt(total)}</span></div>
+    </div>
+    ${xd('total')}
+    ${currentTemplate.showVatBreakdown ? `
+    <hr class="dash">
+    <div class="kv"><span>VAT</span><span>VATABLE</span><span>VAT AMT</span></div>
+    <div class="kv"><span>${escapeHtml(vatLabel)}</span><span></span><span>${vatRate}%</span></div>
+    <div class="kv"><span></span><span>${fmt(vatable)}</span><span>${fmt(vatAmt)}</span></div>
+    ${vatInclusive ? `<div class="footer-note">${msgLines('PRICES INCLUSIVE OF VAT WHERE APPLICABLE!').map(escapeHtml).join('<br>')}</div>` : ''}
+    ` : ''}
+    ${xd('vat')}
+    <hr class="dash">
+    <div class="served">
+      <div>YOU WERE SERVED BY:</div>
+      <div>${escapeHtml(servedBy)}</div>
+      <div style="margin-top:6px;">${msgLines(thanksMsg.toUpperCase()).map(escapeHtml).join('<br>')}</div>
+    </div>
+    <hr class="dash">
+    ${xd('thanks')}
+    ${footerNote ? `<div style="white-space: pre-wrap; word-break: break-all;">${escapeHtml(footerNote)}</div>` : ''}
+    ${xd('bottom')}
+  `;
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+const TXT_WIDTH = 32;
+
+// Optional extra dotted lines: two slots, each can be placed at any anchor (same anchor twice = double line)
+function extraDashPositions() {
+  return ['extraDash1', 'extraDash2'].map(id => document.getElementById(id).value);
+}
+function xd(pos) { return extraDashPositions().filter(p => p === pos).map(() => '<hr class="dash">').join(''); }
+function xl(pos, dash) { return extraDashPositions().filter(p => p === pos).map(() => dash); }
+
+// Original receipts break these two messages after ~23 characters ("...OF VAT / WHERE APPLICABLE !", "...SHOPPING / WITH US !")
+function msgLines(text) { return wrapText(text, 23); }
+
+function wrapText(text, width) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    if ((current + ' ' + word).trim().length > width) {
+      lines.push(current.trim());
+      current = word;
+    } else {
+      current = (current + ' ' + word).trim();
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function padCols(parts, widths) {
+  return parts.map((p, i) => {
+    const w = widths[i];
+    return i === 0 ? p.toString().padEnd(w) : p.toString().padStart(w);
+  }).join('');
+}
+
+function buildTextLines(W = W) {
+  // column layouts scale with the line width (32 -> 12/10/10, 16/16, 10/12/10; 25 -> 9/8/8, 13/12, 8/9/8)
+  const cDate = [Math.ceil(W / 2), W - Math.ceil(W / 2)];
+  const cItem = [Math.round(W * 0.375), Math.round(W * 0.31)];
+  cItem.push(W - cItem[0] - cItem[1]);
+  const cVat = [Math.round(W * 0.31), 0, Math.round(W * 0.31)];
+  cVat[1] = W - cVat[0] - cVat[2];
+  const bizName = document.getElementById('bizName').value;
+  const bizAddr = document.getElementById('bizAddr').value;
+  const bizLocation = document.getElementById('bizLocation').value.trim();
+  const pin = document.getElementById('pin').value.trim();
+  const tin = document.getElementById('tin').value.trim();
+  const vatReg = document.getElementById('vatReg').value.trim();
+  const tillNo = document.getElementById('tillNo').value.trim();
+  const tel = document.getElementById('tel').value;
+  const pumpNo = document.getElementById('pumpNo').value;
+  const saleNo = document.getElementById('saleNo').value;
+  const date = formatDate(document.getElementById('date').value);
+  const time = document.getElementById('time').value;
+  const payMethod = document.getElementById('payMethod').value;
+  const vatLabel = document.getElementById('vatLabel').value;
+  const vatRate = parseFloat(document.getElementById('vatRate').value) || 0;
+  const vatInclusive = document.getElementById('vatInclusive').checked;
+  const servedBy = document.getElementById('servedBy').value;
+  const thanksMsg = document.getElementById('thanksMsg').value;
+  const footerNote = document.getElementById('footerNote').value.trim();
+
+  let total = 0;
+  const dash = '-'.repeat(W);
+  const lines = [];
+
+  const indent = ' '.repeat(Math.floor(W * 0.15));
+  xl('top', dash).forEach(l => lines.push(l));
+  wrapText(bizName, W - indent.length).forEach(l => lines.push(indent + l));
+  wrapText(bizName, W).forEach(l => lines.push(l));
+  bizAddr.split('|').forEach(a => wrapText(a.trim(), W).forEach(l => lines.push(l)));
+  if (bizLocation) wrapText(bizLocation, W).forEach(l => lines.push(l));
+  xl('address', dash).forEach(l => lines.push(l));
+  if (pin) lines.push(`PIN : ${pin}`);
+  if (tin) lines.push(`TIN No. : ${tin}`);
+  if (vatReg) lines.push(`VAT Reg : ${vatReg}`);
+  lines.push(`Tel No. : ${tel}`);
+  if (tillNo) lines.push(`Till No. : ${tillNo}`);
+  lines.push(`${currentTemplate.pumpLabel} : ${pumpNo}`);
+  lines.push(`${currentTemplate.saleLabel} : ${saleNo}`);
+  lines.push(padCols(['Date:', 'Time:'], cDate));
+  lines.push(padCols([date, time], cDate));
+  xl('datetime', dash).forEach(l => lines.push(l));
+  lines.push(dash);
+  lines.push(padCols(['ITEM/QTY', 'PRICE', 'AMOUNT'], cItem));
+  lines.push(dash);
+
+  items.forEach(it => {
+    const amount = it.qty * it.price;
+    total += amount;
+    lines.push(padCols([it.code || '', vatLabel], [W - vatLabel.length, vatLabel.length]));
+    wrapText(it.name, W).forEach(l => lines.push(l));
+    lines.push(padCols([it.qty + ' x', fmt(it.price)], [W - fmt(it.price).length, fmt(it.price).length]));
+    lines.push(fmt(amount).padStart(W));
+    if ((it.ref || '').trim()) { lines.push(''); lines.push(it.ref.trim()); }
+  });
+
+  lines.push(dash);
+  xl('items', dash).forEach(l => lines.push(l));
+  lines.push(padCols(['TOTAL', fmt(total)], [W - fmt(total).length, fmt(total).length]));
+  lines.push(padCols([payMethod, fmt(total)], [W - fmt(total).length, fmt(total).length]));
+  xl('total', dash).forEach(l => lines.push(l));
+
+  const vatAmt = vatInclusive ? total - (total / (1 + vatRate / 100)) : total * (vatRate / 100);
+  const vatable = total - (vatInclusive ? vatAmt : 0);
+
+  if (currentTemplate.showVatBreakdown) {
+    lines.push(dash);
+    lines.push(padCols(['VAT', 'VATABLE', 'VAT AMT'], cVat));
+    lines.push(padCols([vatLabel, '', vatRate + '%'], cVat));
+    lines.push(padCols(['', fmt(vatable), fmt(vatAmt)], cVat));
+    if (vatInclusive) {
+      wrapText('PRICES INCLUSIVE OF VAT WHERE APPLICABLE!', Math.min(W, 23)).forEach(l => lines.push(l));
+    }
+  }
+
+  xl('vat', dash).forEach(l => lines.push(l));
+  lines.push(dash);
+  lines.push('YOU WERE SERVED BY:');
+  lines.push(servedBy);
+  wrapText(thanksMsg.toUpperCase(), Math.min(W, 23)).forEach(l => lines.push(l));
+  lines.push(dash);
+  xl('thanks', dash).forEach(l => lines.push(l));
+  if (footerNote) {
+    footerNote.split('\n').forEach(row => {
+      if (!row.length) { lines.push(''); return; }
+      for (let i = 0; i < row.length; i += W) lines.push(row.slice(i, i + W));
+    });
+  }
+
+  xl('bottom', dash).forEach(l => lines.push(l));
+  return lines;
+}
+
+function downloadText() {
+  const blob = new Blob([buildTextLines().join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'receipt.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ESC/POS raw job for 58mm thermal printers (Font A = 32 chars/line). Kept minimal: no GS L / GS W, which blank some printers.
+function buildEscPosBytes() {
+  const header = [
+    0x1B, 0x40,             // ESC @      initialize printer
+    0x1B, 0x61, 0x00,       // ESC a 0    left align
+    0x1B, 0x4D, 0x00,       // ESC M 0    Font A (12x24 -> 32 chars per line)
+    0x1B, 0x32,             // ESC 2      default line spacing
+    0x1B, 0x45, 0x01,       // ESC E 1    bold on
+    0x1B, 0x64, 0x02        // ESC d 2    feed 2 lines (top gap)
+  ];
+  const footer = [
+    0x1B, 0x45, 0x00,       // ESC E 0    bold off
+    0x1B, 0x64, 0x05        // ESC d 5    feed 5 lines (bottom gap)
+  ];
+  const text = buildTextLines().join('\n').replace(/[^\x00-\x7F]/g, '?') + '\n';
+  const body = Array.from(text, c => c.charCodeAt(0));
+  return new Uint8Array([...header, ...body, ...footer]);
+}
+
+// Pure packing step: RGBA pixels -> ESC/POS raster bands (GS v 0). Left edge of image = left edge of paper.
+function padDots() {
+  const mm = id => Math.max(0, parseFloat(document.getElementById(id).value) || 0);
+  return [Math.round(mm('padTopMm') * 8), Math.round(mm('padBottomMm') * 8)]; // 8 dots = 1mm
+}
+
+function packRaster(rgba, w, h) {
+  const bytesPerRow = w / 8, BAND = 200;
+  const out = [0x1B, 0x40, 0x1B, 0x61, 0x00]; // init, left align (top/bottom white space is built into the image)
+  for (let y0 = 0; y0 < h; y0 += BAND) {
+    const bh = Math.min(BAND, h - y0);
+    out.push(0x1D, 0x76, 0x30, 0x00, bytesPerRow & 255, bytesPerRow >> 8, bh & 255, bh >> 8);
+    for (let y = y0; y < y0 + bh; y++) {
+      for (let bx = 0; bx < bytesPerRow; bx++) {
+        let b = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          const i = (y * w + bx * 8 + bit) * 4;
+          const lum = 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
+          if (lum < 170) b |= 0x80 >> bit;
+        }
+        out.push(b);
+      }
+    }
+  }
+  return new Uint8Array(out);
+}
+
+async function buildImageJob() {
+  const dots = parseInt(document.getElementById('printerDots').value) || 384;
+  const CAPTURE_W = 208; // ~55mm content width, same as the print layout
+  const rightDots = Math.round((parseFloat(document.getElementById('rightPadMm').value) || 0) * 8); // 8 dots = 1mm
+  const contentDots = Math.max(160, dots - rightDots);
+  const shot = await html2canvas(document.getElementById('receiptOutput'), {
+    scale: contentDots / CAPTURE_W,
+    backgroundColor: '#ffffff',
+    onclone: (doc) => {
+      const e = doc.getElementById('receiptOutput');
+      e.style.padding = '0';
+      e.style.margin = '0';
+      e.style.width = CAPTURE_W + 'px';
+      e.style.boxShadow = 'none';
+      e.style.fontSize = '10.5px';
+      if (document.getElementById('imgWeight').value === 'light') e.style.fontWeight = '400';
+    }
+  });
+  const [padT, padB] = padDots();
+  const ch = Math.round(shot.height * contentDots / shot.width);
+  const h = ch + padT + padB;
+  const c = document.createElement('canvas');
+  c.width = dots; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, dots, h);
+  ctx.drawImage(shot, 0, padT, contentDots, ch); // content stays at the left edge, white space on the right
+  return packRaster(ctx.getImageData(0, 0, dots, h).data, dots, h);
+}
+
+function sendToRawBT(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  window.location.href = 'intent:base64,' + btoa(bin) + '#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
+}
+
+// Alignment test: full-width frame, ticks every 32 dots, solid blocks at both inner edges
+function buildAlignmentTest() {
+  const dots = parseInt(document.getElementById('printerDots').value) || 384;
+  const frameH = 180, h = frameH + 160; // 160 blank dots (20mm) below the frame for tearing
+  const px = new Uint8ClampedArray(dots * h * 4).fill(255);
+  const dark = (x, y) => { const i = (y * dots + x) * 4; px[i] = px[i + 1] = px[i + 2] = 0; };
+  for (let y = 0; y < frameH; y++)
+    for (let x = 0; x < dots; x++)
+      if (y < frameH && (x < 4 || x >= dots - 4 || y < 4 || y >= frameH - 4)) dark(x, y);
+  for (let x = 32; x < dots - 4; x += 32) {
+    const len = (x % 96 === 0) ? 40 : 20;
+    for (let y = 4; y < 4 + len; y++) { dark(x, y); dark(x + 1, y); }
+  }
+  for (let y = 80; y < 104; y++)
+    for (let k = 0; k < 24; k++) { dark(4 + k, y); dark(dots - 5 - k, y); }
+  return packRaster(px, dots, h);
+}
+
+function printAlignmentTest() { sendToRawBT(buildAlignmentTest()); }
+
+// Image drawn from the same lines as the ESC/POS text print, at Font A size (12x24 dots per character)
+function buildTextStyleImageJob() {
+  const dots = parseInt(document.getElementById('printerDots').value) || 384;
+  const rightDots = Math.round((parseFloat(document.getElementById('rightPadMm').value) || 0) * 8); // 8 dots = 1mm
+  const contentDots = Math.max(120, dots - rightDots);
+  const cols = Math.min(32, Math.max(18, parseInt(document.getElementById('imgCols').value) || 25));
+  const CH_W = Math.max(8, Math.floor(contentDots / cols));          // dots per character cell
+  const CH_H = parseInt(document.getElementById('imgCharH').value) || 30; // dots per line
+  const fontPx = CH_W / 0.6;                                          // monospace glyph width is ~0.6 em
+  const sy = CH_H / (fontPx * 1.2);                                   // stretch glyphs to the chosen height
+  const rows = [];
+  buildTextLines(cols).forEach(l => {
+    if (!l.length) rows.push('');
+    else for (let i = 0; i < l.length; i += cols) rows.push(l.slice(i, i + cols));
+  });
+  const [padT, padB] = padDots();
+  const h = rows.length * CH_H + padT + padB;
+  const c = document.createElement('canvas');
+  c.width = dots; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, dots, h);
+  ctx.fillStyle = '#000';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;                                                  // Heavy = fill + outline
+  const weight = document.getElementById('imgWeight').value;
+  ctx.font = (weight === 'light' ? 'normal ' : 'bold ') + fontPx.toFixed(1) + 'px "Courier New", Courier, monospace';
+  ctx.textBaseline = 'alphabetic';
+  rows.forEach((row, r) => {
+    for (let i = 0; i < row.length; i++) {
+      const ch = row[i];
+      if (ch === ' ') continue;
+      const cw = ctx.measureText(ch).width;
+      ctx.save();
+      ctx.translate(i * CH_W + (CH_W - cw) / 2, padT + r * CH_H + Math.round(CH_H * 0.78));
+      ctx.scale(1, sy);
+      ctx.fillText(ch, 0, 0);
+      if (weight === 'heavy') ctx.strokeText(ch, 0, 0); // outline only on Heavy
+      ctx.restore();
+    }
+  });
+  return packRaster(ctx.getImageData(0, 0, dots, h).data, dots, h);
+}
+
+function printTextStyleImage() { sendToRawBT(buildTextStyleImageJob()); }
+
+function downloadTextStyleImage() {
+  const blob = new Blob([buildTextStyleImageJob()], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'receipt-text-style-image.bin';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function printImageViaRawBT() {
+  const bytes = await buildImageJob();
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  window.location.href = 'intent:base64,' + btoa(bin) + '#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
+}
+
+async function downloadImageJob() {
+  const blob = new Blob([await buildImageJob()], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'receipt-image.bin';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadEscPos() {
+  const blob = new Blob([buildEscPosBytes()], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'receipt.bin';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function printViaRawBT() {
+  let bin = '';
+  buildEscPosBytes().forEach(b => bin += String.fromCharCode(b));
+  window.location.href = 'intent:base64,' + btoa(bin) + '#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
+}
+
+function downloadPdf() {
+  const el = document.getElementById('receiptOutput');
+  const opt = {
+    margin: 0,
+    filename: 'receipt.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 3 },
+    jsPDF: { unit: 'mm', format: [58, 200], orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(el).save();
+}
+
+// wire up listeners
+document.querySelectorAll('.panel input, .panel select, .panel textarea').forEach(el => {
+  el.addEventListener('input', render);
+  el.addEventListener('change', render);
+});
+
+renderItemInputs();
+applyTemplate('shell_kira');
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
