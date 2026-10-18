@@ -190,7 +190,7 @@
 </style>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#b5401f">
-<link rel="icon" href="icon-192.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -655,7 +655,7 @@ function padCols(parts, widths) {
   }).join('');
 }
 
-function buildTextLines(W = W) {
+function buildTextLines(W = TXT_WIDTH) {
   // column layouts scale with the line width (32 -> 12/10/10, 16/16, 10/12/10; 25 -> 9/8/8, 13/12, 8/9/8)
   const cDate = [Math.ceil(W / 2), W - Math.ceil(W / 2)];
   const cItem = [Math.round(W * 0.375), Math.round(W * 0.31)];

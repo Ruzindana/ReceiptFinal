@@ -1,0 +1,14 @@
+{
+  "id": ".",
+  "name": "ReceiptFinal Receipt Generator",
+  "short_name": "ReceiptFinal",
+  "description": "Create and print thermal receipts.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e9e6dd",
+  "theme_color": "#b5401f",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

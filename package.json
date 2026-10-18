@@ -1,0 +1,19 @@
+{
+  "name": "receipt-final",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Receipt Generator Android app built with Capacitor",
+  "scripts": {
+    "prepare:web": "node scripts/prepare-web.mjs",
+    "android:sync": "pnpm run prepare:web && node ./node_modules/@capacitor/cli/bin/capacitor sync android",
+    "android:open": "node ./node_modules/@capacitor/cli/bin/capacitor open android",
+    "android:apk": "pnpm run android:sync && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}

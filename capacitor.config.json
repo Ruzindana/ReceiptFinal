@@ -1,0 +1,8 @@
+{
+  "appId": "com.ruzindana.receiptfinal",
+  "appName": "ReceiptFinal",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}
